@@ -25,7 +25,7 @@ from girder import events, logger
 from girder.api import access
 from girder.api.describe import autoDescribeRoute, Description
 from girder.api.rest import boundHandler
-from girder.models.model_base import ValidationException
+from girder.exceptions import ValidationException
 from girder.models.setting import Setting
 from girder.models.user import User
 from girder.utility import setting_utilities
@@ -145,8 +145,9 @@ def _ldapAuth(event):
             conn.bind_s(server['bindName'], server['password'], ldap.AUTH_SIMPLE)
 
             searchStr = '%s=%s' % (server['searchField'], login)
-            results = conn.search_s(server['baseDn'], ldap.SCOPE_ONELEVEL, searchStr, _LDAP_ATTRS)
-
+            # Add the searchStr to the attributes, keep local scope.
+            lattr = _LDAP_ATTRS + (server['searchField'],)
+            results = conn.search_s(server['baseDn'], ldap.SCOPE_SUBTREE, searchStr, lattr)
             if results:
                 entry, attrs = results[0]
                 dn = attrs['distinguishedName'][0].decode('utf8')

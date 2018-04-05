@@ -23,7 +23,8 @@ from bson import json_util
 
 from girder import events
 from girder.constants import AccessType, SortDir
-from girder.models.model_base import AccessControlledModel, ValidationException
+from girder.exceptions import ValidationException
+from girder.models.model_base import AccessControlledModel
 from girder.models.notification import Notification
 from girder.models.token import Token
 from girder.models.user import User
@@ -263,10 +264,9 @@ class Job(AccessControlledModel):
         to the database. This will allow kwargs with $ and . characters in the
         keys.
         """
-        deserialized = job['kwargs']
         job['kwargs'] = json_util.dumps(job['kwargs'])
         job = AccessControlledModel.save(self, job, *args, **kwargs)
-        job['kwargs'] = deserialized
+        job['kwargs'] = json_util.loads(job['kwargs'])
         return job
 
     def find(self, *args, **kwargs):

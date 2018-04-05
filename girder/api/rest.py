@@ -29,14 +29,17 @@ import sys
 import traceback
 import unicodedata
 
+from dogpile.cache.util import kwarg_function_key_generator
 from . import docs
 from girder import events, logger, logprint
 from girder.constants import SettingKey, TokenScope, SortDir
-from girder.models.model_base import AccessException, GirderException, ValidationException
+from girder.exceptions import AccessException, GirderException, ValidationException, \
+    RestException
 from girder.models.setting import Setting
 from girder.models.token import Token
 from girder.models.user import User
 from girder.utility import toBool, config, JsonEncoder, optionalArgumentDecorator
+from girder.utility._cache import requestCache
 from girder.utility.model_importer import ModelImporter
 from six.moves import range, urllib
 
@@ -140,45 +143,8 @@ def iterBody(length=READ_BUFFER_LEN, strictLength=False):
             yield buf
 
 
-def _cacheAuthUser(fun):
-    """
-    This decorator for getCurrentUser ensures that the authentication procedure
-    is only performed once per request, and is cached on the request for
-    subsequent calls to getCurrentUser().
-    """
-    def inner(returnToken=False, *args, **kwargs):
-        if not returnToken and hasattr(cherrypy.request, 'girderUser'):
-            return cherrypy.request.girderUser
-
-        user = fun(returnToken, *args, **kwargs)
-        if isinstance(user, tuple):
-            setCurrentUser(user[0])
-        else:
-            setCurrentUser(user)
-
-        return user
-    return inner
-
-
-def _cacheAuthToken(fun):
-    """
-    This decorator for getCurrentToken ensures that the token lookup
-    is only performed once per request, and is cached on the request for
-    subsequent calls to getCurrentToken().
-    """
-    def inner(*args, **kwargs):
-        if hasattr(cherrypy.request, 'girderToken'):
-            return cherrypy.request.girderToken
-
-        token = fun(*args, **kwargs)
-        setattr(cherrypy.request, 'girderToken', token)
-
-        return token
-    return inner
-
-
-@_cacheAuthToken
-def getCurrentToken(allowCookie=False):
+@requestCache.cache_on_arguments(function_key_generator=kwarg_function_key_generator)
+def getCurrentToken(allowCookie=None):
     """
     Returns the current valid token object that was passed via the token header
     or parameter, or None if no valid token was passed.
@@ -189,9 +155,13 @@ def getCurrentToken(allowCookie=False):
         This should only be used on read-only operations that will not make any
         changes to data on the server, and only in cases where the user agent
         behavior makes passing custom headers infeasible, such as downloading
-        data to disk in the browser.
+        data to disk in the browser. In the event that allowCookie is not explicitly
+        passed, it will default to False unless the access.cookie decorator is used.
     :type allowCookie: bool
     """
+    if allowCookie is None:
+        allowCookie = getattr(cherrypy.request, 'girderAllowCookie', False)
+
     tokenStr = None
     if 'token' in cherrypy.request.params:  # Token as a parameter
         tokenStr = cherrypy.request.params.get('token')
@@ -206,7 +176,6 @@ def getCurrentToken(allowCookie=False):
     return Token().load(tokenStr, force=True, objectId=False)
 
 
-@_cacheAuthUser
 def getCurrentUser(returnToken=False):
     """
     Returns the currently authenticated user based on the token header or
@@ -219,6 +188,9 @@ def getCurrentUser(returnToken=False):
               logged in or the token is invalid or expired.  If
               returnToken=True, returns a tuple of (user, token).
     """
+    if not returnToken and hasattr(cherrypy.request, 'girderUser'):
+        return cherrypy.request.girderUser
+
     event = events.trigger('auth.user.get')
     if event.defaultPrevented and len(event.responses) > 0:
         return event.responses[0]
@@ -226,6 +198,8 @@ def getCurrentUser(returnToken=False):
     token = getCurrentToken()
 
     def retVal(user, token):
+        setCurrentUser(user)
+
         if returnToken:
             return user, token
         else:
@@ -541,7 +515,7 @@ def _createResponse(val):
     for accept in accepts:
         if accept.value == 'application/json':
             break
-        elif accept.value == 'text/html':  # pragma: no cover
+        elif accept.value == 'text/html':
             # Pretty-print and HTML-ify the response for the browser
             setResponseHeader('Content-Type', 'text/html')
             resp = cgi.escape(json.dumps(
@@ -682,7 +656,8 @@ def ensureTokenScopes(token, scope):
             'Invalid token scope.\n'
             'Required: %s.\n'
             'Allowed: %s' % (
-                ' '.join(scope), ' '.join(tokenModel.getAllowedScopes(token))))
+                ' '.join(scope),
+                '' if token is None else ' '.join(tokenModel.getAllowedScopes(token))))
 
 
 def _setCommonCORSHeaders():
@@ -709,21 +684,6 @@ def _setCommonCORSHeaders():
             setResponseHeader(key, allowed_list[0])
         elif origin in allowed_list:
             setResponseHeader(key, origin)
-
-
-class RestException(Exception):
-    """
-    Throw a RestException in the case of any sort of incorrect
-    request (i.e. user/client error). Login and permission failures
-    should set a 403 code; almost all other validation errors
-    should use status 400, which is the default.
-    """
-    def __init__(self, message, code=400, extra=None):
-        self.code = code
-        self.extra = extra
-        self.message = message
-
-        Exception.__init__(self, message)
 
 
 class Resource(ModelImporter):
@@ -823,6 +783,8 @@ class Resource(ModelImporter):
         """
         Remove a route from the handler and documentation.
 
+        .. deprecated :: 2.3.0
+
         :param method: The HTTP method, e.g. 'GET', 'POST', 'PUT'
         :type method: str
         :param route: The route, as a list of path params relative to the
@@ -831,7 +793,6 @@ class Resource(ModelImporter):
         :type route: tuple[str]
         :param handler: The method called for the route; this is necessary to
                         remove the documentation.
-        .. deprecated :: 2.3.0
         :type handler: Function
         :param resource: the name of the resource at the root of this route.
         """
@@ -933,10 +894,8 @@ class Resource(ModelImporter):
                 forceCookie = False
             if cookieAuth:
                 if forceCookie or method in ('head', 'get'):
-                    # getCurrentToken will cache its output, so calling it
-                    # once with allowCookie will make the parameter
-                    # effectively permanent (for the request)
-                    getCurrentToken(allowCookie=True)
+                    # Allow cookies for the rest of the request
+                    setattr(cherrypy.request, 'girderAllowCookie', True)
 
         kwargs['params'] = params
         # Add before call for the API method. Listeners can return
@@ -1087,9 +1046,14 @@ class Resource(ModelImporter):
         :param defaultSortDir: Sort direction.
         :type defaultSortDir: girder.constants.SortDir
         """
-        offset = int(params.get('offset', 0))
-        limit = int(params.get('limit', 50))
-        sortdir = int(params.get('sortdir', defaultSortDir))
+        try:
+            offset = int(params.get('offset', 0))
+            limit = int(params.get('limit', 50))
+            sortdir = int(params.get('sortdir', defaultSortDir))
+        except ValueError:
+            raise RestException('Invalid value for offset, limit, or sortdir parameter.')
+        if sortdir not in [SortDir.ASCENDING, SortDir.DESCENDING]:
+            raise RestException('Invalid value for sortdir parameter.')
 
         if 'sort' in params:
             sort = [(params['sort'].strip(), sortdir)]

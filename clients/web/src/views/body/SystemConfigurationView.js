@@ -28,21 +28,28 @@ var SystemConfigurationView = View.extend({
             this.$('#g-settings-error-message').empty();
 
             this.$('#g-core-collection-create-policy').val(JSON.stringify(this._covertCollectionCreationPolicy()));
-            var settings = _.map(this.settingsKeys, function (key) {
+            var settings = _.map(this.settingsKeys, (key) => {
+                const element = this.$('#g-' + key.replace(/[_.]/g, '-'));
+
                 if (key === 'core.route_table') {
                     return {
-                        key: key,
+                        key,
                         value: _.object(_.map($('.g-core-route-table'), function (el) {
                             return [$(el).data('webrootName'), $(el).val()];
                         }))
                     };
+                } else if (_.contains(['core.api_keys', 'core.enable_password_login'], key)) { // booleans via checkboxes
+                    return {
+                        key,
+                        value: element.is(':checked')
+                    };
+                } else { // all other settings use $.fn.val()
+                    return {
+                        key,
+                        value: element.val() || null
+                    };
                 }
-
-                return {
-                    key: key,
-                    value: this.$('#g-' + key.replace(/[_.]/g, '-')).val() || null
-                };
-            }, this);
+            });
 
             restRequest({
                 method: 'PUT',
@@ -51,7 +58,7 @@ var SystemConfigurationView = View.extend({
                     list: JSON.stringify(settings)
                 },
                 error: null
-            }).done(_.bind(function () {
+            }).done(() => {
                 this.$('.g-submit-settings').girderEnable(true);
                 events.trigger('g:alert', {
                     icon: 'ok',
@@ -59,10 +66,10 @@ var SystemConfigurationView = View.extend({
                     type: 'success',
                     timeout: 4000
                 });
-            }, this)).fail(_.bind(function (resp) {
+            }).fail((resp) => {
                 this.$('.g-submit-settings').girderEnable(true);
                 this.$('#g-settings-error-message').text(resp.responseJSON.message);
-            }, this));
+            });
         },
         'click #g-restart-server': restartServerPrompt,
         'click #g-core-banner-default-color': function () {
@@ -74,10 +81,12 @@ var SystemConfigurationView = View.extend({
         cancelRestRequests('fetch');
 
         var keys = [
+            'core.api_keys',
             'core.contact_email_address',
             'core.brand_name',
             'core.banner_color',
             'core.cookie_lifetime',
+            'core.enable_password_login',
             'core.email_from_address',
             'core.email_host',
             'core.registration_policy',
@@ -105,7 +114,7 @@ var SystemConfigurationView = View.extend({
                 list: JSON.stringify(keys),
                 default: 'none'
             }
-        }).done(_.bind(function (resp) {
+        }).done((resp) => {
             this.settings = resp;
             restRequest({
                 url: 'system/setting',
@@ -114,11 +123,11 @@ var SystemConfigurationView = View.extend({
                     list: JSON.stringify(keys),
                     default: 'default'
                 }
-            }).done(_.bind(function (resp) {
+            }).done((resp) => {
                 this.defaults = resp;
                 this.render();
-            }, this));
-        }, this));
+            });
+        });
     },
 
     render: function () {
@@ -126,19 +135,18 @@ var SystemConfigurationView = View.extend({
             settings: this.settings,
             defaults: this.defaults,
             routes: this.settings['core.route_table'] || this.defaults['core.route_table'],
-            routeKeys: _.sortBy(_.keys(this.settings['core.route_table'] ||
-                                       this.defaults['core.route_table']),
-                                function (a) {
-                                    return a.indexOf('core_') === 0 ? -1 : 0;
-                                }),
+            routeKeys: _.sortBy(
+                _.keys(this.settings['core.route_table'] || this.defaults['core.route_table']),
+                (a) => a.indexOf('core_') === 0 ? -1 : 0
+            ),
             JSON: window.JSON
         }));
 
-        var enableCollectionCrreationPolicy = this.settings['core.collection_create_policy'] ? this.settings['core.collection_create_policy'].open : false;
+        var enableCollectionCreationPolicy = this.settings['core.collection_create_policy'] ? this.settings['core.collection_create_policy'].open : false;
 
         this.$('.g-plugin-switch')
             .bootstrapSwitch()
-            .bootstrapSwitch('state', enableCollectionCrreationPolicy)
+            .bootstrapSwitch('state', enableCollectionCreationPolicy)
             .off('switchChange.bootstrapSwitch')
             .on('switchChange.bootstrapSwitch', (event, state) => {
                 if (state) {
@@ -149,7 +157,7 @@ var SystemConfigurationView = View.extend({
                 }
             });
 
-        if (enableCollectionCrreationPolicy) {
+        if (enableCollectionCreationPolicy) {
             this._renderCollectionCreationPolicyAccessWidget();
         }
 

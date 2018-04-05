@@ -27,8 +27,7 @@ var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var paths = require('./webpack.paths.js');
 // Resolving the Babel presets here is required to support symlinking plugin directories from
 // outside Girder's file tree
-const es2015BabelPreset = require.resolve('babel-preset-es2015');
-const es2016BabelPreset = require.resolve('babel-preset-es2016');
+const babelPresets = require.resolve('babel-preset-env');
 
 function fileLoader() {
     return {
@@ -38,22 +37,6 @@ function fileLoader() {
             outputPath: 'assets/'
         }
     };
-}
-
-function _coverageConfig() {
-    try {
-        var istanbulPlugin = require.resolve('babel-plugin-istanbul');
-        return {
-            plugins: [[
-                istanbulPlugin, {
-                    exclude: ['**/*.pug', '**/*.jade', 'node_modules/**/*']
-                }
-            ]]
-        };
-    } catch (e) {
-        // We won't have the istanbul plugin installed in a prod env.
-        return {};
-    }
 }
 
 var loaderPaths = [path.resolve('clients', 'web', 'src')];
@@ -85,7 +68,7 @@ module.exports = {
     ],
     module: {
         rules: [
-            // ES2015
+            // ES2015+
             {
                 resource: {
                     test: /\.js$/,
@@ -96,10 +79,8 @@ module.exports = {
                     {
                         loader: 'babel-loader',
                         options: {
-                            presets: [es2015BabelPreset, es2016BabelPreset],
-                            env: {
-                                cover: _coverageConfig()
-                            },
+                            // Without any options, 'preset-env' behavies like 'preset-latest'
+                            presets: [babelPresets],
                             cacheDirectory: true
                         }
                     }
@@ -150,7 +131,7 @@ module.exports = {
                     {
                         loader: 'babel-loader',
                         options: {
-                            presets: [es2015BabelPreset, es2016BabelPreset],
+                            presets: [babelPresets],
                             cacheDirectory: true
                         }
                     },
@@ -160,7 +141,7 @@ module.exports = {
             // PNG, JPEG
             {
                 resource: {
-                    test: /\.(png|jpg)$/,
+                    test: /\.(png|jpg|gif)$/,
                     include: loaderPathsNodeModules
                 },
                 use: [

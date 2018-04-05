@@ -19,9 +19,10 @@
 
 import datetime
 
-from .model_base import AccessControlledModel, ValidationException
+from .model_base import AccessControlledModel
 from girder import events
 from girder.constants import AccessType, CoreEventHandler
+from girder.exceptions import ValidationException
 
 
 class Group(AccessControlledModel):
@@ -408,7 +409,7 @@ class Group(AccessControlledModel):
             return level
 
     def setGroupAccess(self, doc, group, level, save=False):
-        raise Exception('Not implemented.')  # pragma: no cover
+        raise NotImplementedError('Not implemented.')
 
     def setUserAccess(self, doc, user, level, save=False):
         """

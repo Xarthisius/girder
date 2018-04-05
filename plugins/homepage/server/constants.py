@@ -20,7 +20,7 @@
 import six
 
 from girder.constants import AccessType
-from girder.models.model_base import AccessException, ValidationException
+from girder.exceptions import AccessException, ValidationException
 from girder.models.file import File
 from girder.utility import setting_utilities
 
@@ -28,7 +28,7 @@ from girder.utility import setting_utilities
 COLLECTION_NAME = 'Homepage Assets'
 
 
-class PluginSettings:
+class PluginSettings(object):
     MARKDOWN = 'homepage.markdown'
 
     HEADER = 'homepage.header'

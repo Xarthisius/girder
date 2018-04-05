@@ -17,18 +17,25 @@
 #  limitations under the License.
 ###############################################################################
 
-import dicom
+import datetime
+import json
+
+import pydicom
+import pydicom.valuerep
+import pydicom.multival
+import pydicom.sequence
 import six
-from dicom.sequence import Sequence
-from dicom.valuerep import PersonName3
 
 from girder import events
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
 from girder.constants import AccessType, TokenScope
+from girder.exceptions import RestException
 from girder.models.item import Item
 from girder.models.file import File
+from girder.utility import search
+from girder.utility.progress import setResponseTimeLimit
 
 
 class DicomItem(Resource):
@@ -61,6 +68,8 @@ class DicomItem(Resource):
                 _removeUniqueMetadata(metadataReference, dicomMeta)
             )
 
+            setResponseTimeLimit()
+
         if dicomFiles:
             # Sort the dicom files
             dicomFiles.sort(key=_getDicomFileSortKey)
@@ -73,16 +82,16 @@ class DicomItem(Resource):
             Item().save(item)
 
 
-def _extractFileData(file, dicom):
+def _extractFileData(file, dicomMetadata):
     """
-    Extract the usefull data to be stored in the `item['dicom']['files']`.
+    Extract the useful data to be stored in the `item['dicom']['files']`.
     In this way it become simpler to sort them and store them.
     """
     return {
         'dicom': {
-            'SeriesNumber': dicom.get('SeriesNumber'),
-            'InstanceNumber': dicom.get('InstanceNumber'),
-            'SliceLocation': dicom.get('SliceLocation')
+            'SeriesNumber': dicomMetadata.get('SeriesNumber'),
+            'InstanceNumber': dicomMetadata.get('InstanceNumber'),
+            'SliceLocation': dicomMetadata.get('SliceLocation')
         },
         'name': file['name'],
         '_id': file['_id']
@@ -124,51 +133,79 @@ def _removeUniqueMetadata(dicomMeta, additionalMeta):
     )
 
 
-def _coerce(x):
-    if isinstance(x, Sequence):
-        return None
-    if isinstance(x, list):
-        return [_coerce(y) for y in x]
-    if isinstance(x, PersonName3):
-        return x.encode('utf-8')
-    try:
-        six.text_type(x)
-        return x
-    except Exception:
-        return None
+def _coerceValue(value):
+    # Many pydicom value types are subclasses of base types; to ensure the value can be serialized
+    # to MongoDB, cast the value back to its base type
+    for knownBaseType in {
+        int,
+        float,
+        six.binary_type,
+        six.text_type,
+        datetime.datetime,
+        datetime.date,
+        datetime.time,
+    }:
+        if isinstance(value, knownBaseType):
+            return knownBaseType(value)
+
+    # In Python3, pydicom does not treat the PersonName type as a subclass of a text type
+    if isinstance(value, pydicom.valuerep.PersonName3):
+        return value.encode('utf-8')
+
+    # Handle lists (MultiValue) recursively
+    if isinstance(value, pydicom.multival.MultiValue):
+        if isinstance(value, pydicom.sequence.Sequence):
+            # A pydicom Sequence is a nested list of Datasets, which is too complicated to flatten
+            # now
+            raise ValueError('Cannot coerce a Sequence')
+        return list(map(_coerceValue, value))
+
+    raise ValueError('Unknown type', type(value))
+
+
+def _coerceMetadata(dataset):
+    metadata = {}
+
+    # Use simple iteration instead of "dataset.iterall", to prevent recursing into Sequiences, which
+    # are too complicated to flatten now
+    for dataElement in dataset:
+        if dataElement.tag.element == 0:
+            # Skip Group Length tags, which are always element 0x0000
+            continue
+
+        # Use "keyword" instead of "name", as the keyword is a simpler and more uniform string
+        # See: http://dicom.nema.org/medical/dicom/current/output/html/part06.html#table_6-1
+        # For unknown / private tags, allow pydicom to create a string representation like
+        # "(0013, 1010)"
+        tagKey = dataElement.keyword \
+            if dataElement.keyword and not dataElement.tag.is_private else \
+            str(dataElement.tag)
+
+        try:
+            tagValue = _coerceValue(dataElement.value)
+        except ValueError:
+            # Omit tags where the value cannot be coerced to JSON-encodable types
+            continue
+
+        metadata[tagKey] = tagValue
+
+    return metadata
 
 
 def _parseFile(f):
-    data = {}
     try:
         # download file and try to parse dicom
         with File().open(f) as fp:
-            ds = dicom.read_file(
+            dataset = pydicom.dcmread(
                 fp,
-                # some dicom files don't have a valid header
-                # force=True,
                 # don't read huge fields, esp. if this isn't even really dicom
                 defer_size=1024,
                 # don't read image data, just metadata
                 stop_before_pixels=True)
-            # does this look like a dicom file?
-            if (len(ds.dir()), len(ds.items())) == (0, 1):
-                return data
-            # human-readable keys
-            for key in ds.dir():
-                value = _coerce(ds.data_element(key).value)
-                if value is not None:
-                    data[key] = value
-            # hex keys
-            for key, value in ds.items():
-                key = 'x%04x%04x' % (key.group, key.element)
-                value = _coerce(value.value)
-                if value is not None:
-                    data[key] = value
-    except dicom.errors.InvalidDicomError:
+            return _coerceMetadata(dataset)
+    except pydicom.errors.InvalidDicomError:
         # if this error occurs, probably not a dicom file
         return None
-    return data
 
 
 def _uploadHandler(event):
@@ -195,9 +232,51 @@ def _uploadHandler(event):
     events.trigger('dicom_viewer.upload.success')
 
 
+def dicomSubstringSearchHandler(query, types, user=None, level=None, limit=0, offset=0):
+    """
+    Provide a substring search on both keys and values.
+    """
+    if types != ['item']:
+        raise RestException('The dicom search is only able to search in Item.')
+    if not isinstance(query, six.string_types):
+        raise RestException('The search query must be a string.')
+
+    jsQuery = """
+        function() {
+            var queryKey = %(query)s.toLowerCase();
+            var queryValue = queryKey;
+            var dicomMeta = obj.dicom.meta;
+            return Object.keys(dicomMeta).some(
+                function(key) {
+                    return (key.toLowerCase().indexOf(queryKey) !== -1)  ||
+                        dicomMeta[key].toString().toLowerCase().indexOf(queryValue) !== -1;
+                })
+            }
+    """ % {
+        # This could eventually be a separately-defined key and value
+        'query': json.dumps(query)
+    }
+
+    # Sort the documents inside MongoDB
+    cursor = Item().find({'dicom': {'$exists': True}, '$where': jsQuery})
+    # Filter the result
+    result = {
+        'item': [
+            Item().filter(doc, user)
+            for doc in Item().filterResultsByPermission(cursor, user, level, limit, offset)
+        ]
+    }
+
+    return result
+
+
 def load(info):
     Item().exposeFields(level=AccessType.READ, fields={'dicom'})
     events.bind('data.process', 'dicom_viewer', _uploadHandler)
+
+    # Add the DICOM search mode only once
+    search.addSearchMode('dicom', dicomSubstringSearchHandler)
+
     dicomItem = DicomItem()
     info['apiRoot'].item.route(
         'POST', (':id', 'parseDicom'), dicomItem.makeDicomItem)

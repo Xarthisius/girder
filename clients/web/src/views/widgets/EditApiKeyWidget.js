@@ -56,13 +56,13 @@ var EditApiKeyWidget = View.extend({
 
         restRequest({
             url: 'token/scopes'
-        }).done(_.bind(function (resp) {
+        }).done((resp) => {
             this.scopeInfo = resp;
             if (this._shouldRender) {
                 this._shouldRender = false;
                 this.render();
             }
-        }, this));
+        });
     },
 
     render: function () {
@@ -71,14 +71,17 @@ var EditApiKeyWidget = View.extend({
             return;
         }
 
+        let tokenScopes = this.scopeInfo.custom;
+        if (getCurrentUser().get('admin')) {
+            tokenScopes = tokenScopes.concat(this.scopeInfo.adminCustom);
+        }
+
         var modal = this.$el.html(EditApiKeyWidgetTemplate({
             apiKey: this.model,
-            user: getCurrentUser(),
-            userTokenScopes: this.scopeInfo.custom,
-            adminTokenScopes: this.scopeInfo.adminCustom
-        })).girderModal(this).on('shown.bs.modal', _.bind(function () {
+            tokenScopes: tokenScopes
+        })).girderModal(this).on('shown.bs.modal', () => {
             this.$('#g-api-key-name').focus();
-        }, this)).on('ready.girder.modal', _.bind(function () {
+        }).on('ready.girder.modal', () => {
             if (this.model) {
                 this.$('#g-api-key-name').val(this.model.get('name'));
                 this.$('#g-api-key-token-duration').val(this.model.get('tokenDuration') || '');
@@ -90,7 +93,7 @@ var EditApiKeyWidget = View.extend({
                     }, this);
                 }
             }
-        }, this));
+        });
         modal.trigger($.Event('ready.girder.modal', {relatedTarget: modal}));
 
         this.$('#g-api-key-name').focus();

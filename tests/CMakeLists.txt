@@ -1,6 +1,3 @@
-set(COVERAGE_MINIMUM_PASS 90 CACHE STRING "Minimum python coverage threshold percent")
-set(JS_COVERAGE_MINIMUM_PASS 80 CACHE STRING "Minimum JS coverage threshold percent")
-
 # Test if mongod is present for tests that require it.
 find_program(MONGOD_EXECUTABLE mongod)
 if("${MONGOD_EXECUTABLE}" STREQUAL "MONGOD_EXECUTABLE-NOTFOUND")
@@ -21,65 +18,62 @@ if(RUN_CORE_TESTS)
   add_eslint_test(grunt_modules grunt_tasks)
   add_eslint_test(test_specs clients/web/test)
   add_eslint_test(swagger clients/web/static/girder-swagger.js)
-  add_eslint_test(jquery_client clients/jquery)
 
   add_python_style_test(python_static_analysis_core "${PROJECT_SOURCE_DIR}/girder")
   add_python_style_test(python_static_analysis_core_tests "${PROJECT_SOURCE_DIR}/tests")
+  add_python_style_test(python_static_analysis_core_pytest_girder "${PROJECT_SOURCE_DIR}/pytest_girder")
   add_python_style_test(python_static_analysis_ansible_client_tests
     "${PROJECT_SOURCE_DIR}/devops/ansible/roles/girder/library")
 
   # These are performed approximately in the order listed.
   add_python_test(api_describe)
-  add_python_test(api_key)
-  add_python_test(access)
   add_python_test(assetstore)
   add_python_test(collection)
-  add_python_test(custom_root)
-  add_python_test(events)
   add_python_test(file)
   add_python_test(filter_logging)
   add_python_test(find_entry_point_plugins)
   add_python_test(folder)
   add_python_test(group)
-  add_python_test(hash_state)
   add_python_test(install)
   add_python_test(item)
-  add_python_test(logging_config)
-  add_python_test(mail)
-  add_python_test(model)
   add_python_test(model_singleton)
-  add_python_test(routetable)
   add_python_test(notification TIMEOUT 50)
   add_python_test(plugin_load_failure)
-  add_python_test(api_prefix)
   add_python_test(resource)
   add_python_test(rest_decorator BIND_SERVER)
-  add_python_test(rest_util)
-  add_python_test(routes)
+  add_python_test(routes BIND_SERVER)
   add_python_test(search)
   add_python_test(setting)
   add_python_test(sftp)
-  add_python_test(size)
   add_python_test(stream BIND_SERVER TIMEOUT 90)
+  # The system test depends on javascript-generate version information, so add
+  # it to the integration group.
   add_python_test(system)
-  add_python_test(token)
+  set_property(TEST server_system PROPERTY LABELS girder_integration)
   # Upload test uses mongo replicaset and a lot of resources, so we run it by itself
   add_python_test(upload RUN_SERIAL RESOURCE_LOCKS replicaset REQUIRED_FILES "${MONGOD_EXECUTABLE}" "${MONGOS_EXECUTABLE}")
+  set_property(TEST server_upload PROPERTY LABELS girder_integration)
   add_python_test(user)
-  add_python_test(webroot)
-  add_python_test(path_utilities)
   add_python_test(setup_database)
 
   add_python_test(py_client.cli BIND_SERVER RESOURCE_LOCKS py_client_test_dir)
   add_python_test(py_client.lib BIND_SERVER RESOURCE_LOCKS py_client_test_dir)
 
+  add_pytest_test(core)
+
   add_web_client_test(data_filesystem "${PROJECT_SOURCE_DIR}/clients/web/test/spec/dataSpec.js" ASSETSTORE filesystem)
   add_web_client_test(data_gridfs "${PROJECT_SOURCE_DIR}/clients/web/test/spec/dataSpec.js" ASSETSTORE gridfs)
   add_web_client_test(data_gridfsrs "${PROJECT_SOURCE_DIR}/clients/web/test/spec/dataSpec.js" ASSETSTORE gridfsrs RESOURCE_LOCKS replicaset REQUIRED_FILES "${MONGOD_EXECUTABLE}")
+  if (BUILD_JAVASCRIPT_TESTS)
+    set_property(TEST web_client_data_gridfsrs PROPERTY LABELS girder_integration)
+  endif()
   add_web_client_test(data_gridfsshard "${PROJECT_SOURCE_DIR}/clients/web/test/spec/dataSpec.js" ASSETSTORE gridfsshard RESOURCE_LOCKS replicaset REQUIRED_FILES "${MONGOD_EXECUTABLE}" "${MONGOS_EXECUTABLE}")
+  if (BUILD_JAVASCRIPT_TESTS)
+    set_property(TEST web_client_data_gridfsshard PROPERTY LABELS girder_integration)
+  endif()
   add_web_client_test(data_s3 "${PROJECT_SOURCE_DIR}/clients/web/test/spec/dataSpec.js" ASSETSTORE s3 WEBSECURITY false)
   add_web_client_test(admin "${PROJECT_SOURCE_DIR}/clients/web/test/spec/adminSpec.js" ASSETSTORE s3 WEBSECURITY false
-    PLUGIN_DIR "${PROJECT_SOURCE_DIR}/tests/test_plugins"
+    PLUGIN_DIR "${PROJECT_SOURCE_DIR}/test/test_plugins"
     ENABLEDPLUGINS "bad_server"
     RESOURCE_LOCKS replicaset
     )
@@ -103,19 +97,18 @@ if(RUN_CORE_TESTS)
   add_web_client_test(utilities "${PROJECT_SOURCE_DIR}/clients/web/test/spec/utilitiesSpec.js")
 
   # Add tests for the local TestData module
-  add_plugin_data_path("has_external_data" "${PROJECT_SOURCE_DIR}/tests/test_plugins/has_external_data")
+  add_plugin_data_path("has_external_data" "${PROJECT_SOURCE_DIR}/test/test_plugins/has_external_data")
   add_python_test(external_data_core
     EXTERNAL_DATA "test_file.txt"
   )
   add_python_test(external_data_plugin
     EXTERNAL_DATA "plugins/has_external_data/plugin_test_file.txt"
   )
-  set_property(TEST server_external_data_core PROPERTY LABELS girder_devel)
-  set_property(TEST server_external_data_plugin PROPERTY LABELS girder_devel)
+  set_property(TEST server_external_data_core PROPERTY LABELS girder_integration)
+  set_property(TEST server_external_data_plugin PROPERTY LABELS girder_integration)
 
   add_subdirectory(clients)
   add_subdirectory(packaging)
-  include(DocumentationTests.cmake)
 endif()
 
 macro(add_standard_plugin_tests)
@@ -175,8 +168,7 @@ macro(add_standard_plugin_tests)
       string(REGEX REPLACE "Spec\\.js$" "" _clientTestName "${_clientTestFileName}")
       add_web_client_test(${_clientTestName} "${_clientTestFile}" PLUGIN ${_pluginName})
     endforeach()
-    add_eslint_test(${_pluginName}_tests "${_pluginDir}/plugin_tests"
-      ESLINT_CONFIG_FILE "${PROJECT_SOURCE_DIR}/clients/web/test/.eslintrc.json")
+    add_eslint_test(${_pluginName}_tests "${_pluginDir}/plugin_tests")
   endif()
 endmacro()
 

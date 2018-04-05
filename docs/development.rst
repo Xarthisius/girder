@@ -42,7 +42,7 @@ documentation on how to set this up, see `Developer Installation <dev-installati
 During Development
 ------------------
 
-Once Girder is started via ``girder-server``, the server
+Once Girder is started via ``girder serve``, the server
 will reload itself whenever a Python file is modified.
 
 If you are doing front-end development, it's much faster to use a *watch* process to perform
@@ -69,7 +69,7 @@ are actually bound but requests can still be performed via Python. Bootstrapping
 involves running ``girder.utility.server.configureServer`` with the plugins to be enabled.
 
 Girder provides a utility script for entering into a shell with the server preconfigured. Once
-Girder is installed the script can be run using ``girder-shell`` which optionally takes a comma
+Girder is installed the script can be run using ``girder shell`` which optionally takes a comma
 separated list of plugins to enable.
 
 Utilities
@@ -101,7 +101,7 @@ will override the defaults.
 Server Development
 ------------------
 
-All commits to the core python code must work in both python 2.7 and 3.4.
+All commits to the core python code must work in both python 2.7 and 3.5.
 Python code in plugins should also work in both, but some plugins may depend
 on third party libraries that do not support python 3. If that is the case, those
 plugins should declare ``"python3": false`` in their **plugin.json** or **plugin.yml** file
@@ -163,8 +163,12 @@ its views, you should pass ``parentView: null`` and make sure to call
 Server Side Testing
 -------------------
 
-Running the Tests
-^^^^^^^^^^^^^^^^^
+Running the Tests with CTest
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note:: Girder is currently transitioning its Python testing to use `pytest <https://pytest.org>`_, until
+          the transition is complete both ``ctest`` and ``pytest`` must be run to cover
+          all tests. See the section below for running tests with ``pytest``.
 
 First, you will need to configure the project with
 `CMake <http://www.cmake.org>`_. ::
@@ -196,13 +200,48 @@ virtualenv needed to build the packages.
 source dir ``girder`` and could include ``girder-<version>.tar.gz``, ``girder-web-<version>.tar.gz``,
 and ``girder-plugins-<version>.tar.gz``.
 
+
+Running the Tests with pytest
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+From the Girder directory, run ``pytest``. To run specific tests with long tracebacks, run ::
+
+  pytest --tb=long -k testTokenSessionDeletion
+
+
+Running the Tests with tox
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Girder uses `tox <https://tox.readthedocs.io/en/latest/>`_ for running the tests inside of virtual
+environments. By default, running ``tox`` will create a virtual environment, install test
+dependencies, install Girder, and run ``pytest`` for each version of Python that Girder supports.
+
+Sometimes it might be desirable to only run ``tox`` against a single Python environment, such as
+Python 3.5. To do this run ``tox -e py35``. Note that a list of valid environments can be found by
+running ``tox -a``.
+
+Specific arguments can be passed through to ``pytest`` by adding them after the ``tox``
+parameters. For instance, running only the ``testLoadModelDecorator`` test against all supported
+versions of Python can be achieved with the following command ::
+
+  tox -- -k testLoadModelDecorator
+
+.. note:: Sometimes it might be desirable to have ``tox`` destroy and recreate all virtual
+          environments used for testing, this can be accomplished by passing the ``--recreate`` flag
+          to ``tox``.
+
+
 Running the Tests with Coverage Tracing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To run Python coverage on your tests, configure with CMake and run CTest.
 The coverage data will be automatically generated. After the tests are run,
 you can find the HTML output from the coverage tool in the source directory
-under **/clients/web/dev/built/py_coverage**.
+under **build/test/artifacts/**.
+
+.. note:: Non-packaged third-party modules in the the ``girder/external`` directory are not included
+          in test coverage tracking.
+
 
 Client Side Testing
 -------------------
@@ -258,6 +297,8 @@ defined at ``/clients/web/test/testUtils.js``.
 Initializing the Database for a Test
 ------------------------------------
 
+.. note:: This functionality has not yet been ported to our ``pytest`` tests.
+
 When running tests in Girder, the database will initially be empty.  Often times, you want to be able to start the test with the database in a
 particular state.  To avoid repetitive initialization code, Girder provides a way to import a folder hierarchy from the file system
 using a simple initialization file.  This file is in YAML (or JSON) format and provides a list of objects to insert into the database
@@ -303,7 +344,7 @@ you should point girder to an empty database ::
 
 You can browse the result in Girder by running ::
 
-    GIRDER_MONGO_URI='mongodb://127.0.0.1:27017/mytest' girder-server
+    GIRDER_MONGO_URI='mongodb://127.0.0.1:27017/mytest' girder serve
 
 .. note::
 
@@ -411,21 +452,22 @@ Web client libraries in Girder core are managed via `npm <https://www.npmjs.com/
 When a new npm package is required, or an existing package is upgraded, the following
 should be done:
 
-1. Ensure that you are using a Linux development environment (macOS causes npm to produce slightly
-   different outputs) with version >=5.3 of npm installed:
+1. Ensure that you are using a development environment with version >=5.6 of npm installed:
 
    .. code-block:: bash
 
-       npm install -g 'npm@>=5.3'
+       npm install -g 'npm@>=5.6'
 
 2. Update ``dependencies`` or ``devDependencies`` in ``package.json`` to add a new
    *abstract* specifier for the package:
+
   * Packages that are bundled into the web client should generally use the
     `tilde range <https://www.npmjs.com/package/semver#tilde-ranges-123-12-1>`_
     to specify versions.
   * Packages that are part of the build or testing process should generally use the
     `caret range <https://www.npmjs.com/package/semver#caret-ranges-123-025-004>`_
     to specify versions.
+
 3. Run from the root Girder directory:
 
    .. code-block:: bash
@@ -524,7 +566,7 @@ The process for releasing the python client is as follows:
         python setup.py sdist --dist-dir .
 
 3.  That should have created the package tarball as ``girder-client-<version>.tar.gz``.
-    Install it locally in a virtualenv and ensure that you can call the ``girder-cli``
+    Install it locally in a virtualenv and ensure that you can call the ``girder-client``
     executable.
 
     .. code-block:: bash
@@ -533,7 +575,7 @@ The process for releasing the python client is as follows:
         virtualenv release
         source release/bin/activate
         pip install ../girder-client-<version>.tar.gz
-        girder-cli
+        girder-client
 
 4.  Go back to the ``clients/python`` directory and upload the package to pypi:
 

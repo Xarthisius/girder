@@ -12,6 +12,7 @@ from .json_tasks import createItemTasksFromJson, configureItemTaskFromJson, \
     runJsonTasksDescriptionForFolder, runJsonTasksDescriptionForItem
 from .slicer_cli_tasks import configureItemTaskFromSlicerCliXml, createItemTasksFromSlicerCliXml, \
     runSlicerCliTasksDescriptionForFolder, runSlicerCliTasksDescriptionForItem
+from .celery_tasks import describeCeleryTaskItem, celeryTaskDescriptionForFolder
 
 
 def _onJobSave(event):
@@ -40,8 +41,8 @@ def _onUpload(event):
     they are used to link item task outputs back to a job document.
     """
     try:
-        ref = json.loads(event.info.get('reference'))
-    except (ValueError, TypeError):
+        ref = json.loads(event.info.get('reference', ''))
+    except ValueError:
         return
 
     if isinstance(ref, dict) and ref.get('type') == 'item_tasks.output':
@@ -93,6 +94,8 @@ def load(info):
                                runJsonTasksDescriptionForItem)
     info['apiRoot'].item.route('PUT', (':id', 'item_task_json_specs'),
                                configureItemTaskFromJson)
+    info['apiRoot'].item.route('POST', (':id', 'item_task_celery'),
+                               describeCeleryTaskItem)
 
     info['apiRoot'].folder.route('POST', (':id', 'item_task_slicer_cli_description'),
                                  runSlicerCliTasksDescriptionForFolder)
@@ -102,3 +105,5 @@ def load(info):
                                  runJsonTasksDescriptionForFolder)
     info['apiRoot'].folder.route('POST', (':id', 'item_task_json_specs'),
                                  createItemTasksFromJson)
+    info['apiRoot'].folder.route('POST', (':id', 'item_task_celery'),
+                                 celeryTaskDescriptionForFolder)

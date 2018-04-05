@@ -18,6 +18,7 @@
 ###############################################################################
 
 import json
+import mock
 import os
 import time
 import six
@@ -29,7 +30,7 @@ from girder.api import access
 from girder.api.describe import describeRoute, API_VERSION
 from girder.api.rest import getApiUrl, loadmodel, Resource
 from girder.constants import AccessType, SettingKey, SettingDefault, registerAccessFlag, ROOT_DIR
-from girder.models.model_base import AccessException, ValidationException
+from girder.exceptions import AccessException, ValidationException
 from girder.models.collection import Collection
 from girder.models.file import File
 from girder.models.folder import Folder
@@ -251,14 +252,17 @@ class SystemTestCase(base.TestCase):
             }, user=users[0])
             self.assertStatusOk(resp)
 
-    def testPlugins(self):
+    @mock.patch('girder.utility.plugin_utilities.logprint.exception')
+    def testPlugins(self, logprint):
         resp = self.request(path='/system/plugins', user=self.users[0])
         self.assertStatusOk(resp)
         self.assertIn('all', resp.json)
         self.assertNotIn('.gitignore', resp.json['all'])
 
-        self.mockPluginDir(
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'test_plugins'))
+        testPluginPath = os.path.normpath(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), '..', '..', 'test', 'test_plugins'
+        ))
+        self.mockPluginDir(testPluginPath)
 
         resp = self.request(
             path='/system/plugins', method='PUT', user=self.users[0],
@@ -280,11 +284,24 @@ class SystemTestCase(base.TestCase):
         self.assertEqual(resp.json['message'],
                          ("Required plugin a_plugin_that_does_not_exist"
                           " does not exist."))
+        resp = self.request(
+            path='/system/plugins', method='PUT', user=self.users[0],
+            params={'plugins': '["has_deps", "has_sub_deps"]'})
+        self.assertStatusOk(resp)
+        enabled = resp.json['value']
+        self.assertEqual(len(enabled), 6)
+        self.assertTrue('test_plugin' in enabled)
+        self.assertTrue('does_nothing' in enabled)
+        self.assertTrue('has_other_deps' in enabled)
+        self.assertTrue('plugin_yaml' in enabled)
         self.unmockPluginDir()
 
-    def testBadPlugin(self):
-        self.mockPluginDir(
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'bad_plugins'))
+    @mock.patch('girder.utility.plugin_utilities.logprint.exception')
+    def testBadPlugin(self, logprint):
+        pluginRoot = os.path.normpath(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), '..', '..', 'test', 'test_plugins'
+        ))
+        self.mockPluginDir(pluginRoot)
 
         # Enabling plugins with bad JSON/YML should still work.
         resp = self.request(
@@ -300,7 +317,10 @@ class SystemTestCase(base.TestCase):
         self.assertHasKeys(resp.json['failed'], ['bad_json', 'bad_yaml'])
         self.assertIn('traceback', resp.json['failed']['bad_json'])
         self.assertIn('traceback', resp.json['failed']['bad_yaml'])
-        self.assertIn('ValueError:', resp.json['failed']['bad_json']['traceback'])
+        # Python < 3.5 throw ValueError, >= 3.5 throw JSONDecodeError
+        self.assertTrue(
+            'ValueError:' in resp.json['failed']['bad_json']['traceback'] or
+            'JSONDecodeError:' in resp.json['failed']['bad_json']['traceback'])
         self.assertIn('ScannerError:', resp.json['failed']['bad_yaml']['traceback'])
 
         self.unmockPluginDir()

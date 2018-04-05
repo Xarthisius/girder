@@ -22,7 +22,8 @@ import os
 import tempfile
 import warnings
 
-from girder.models.model_base import ModelImporter, GirderException
+from girder.models.model_base import ModelImporter
+from girder.exceptions import GirderException
 from girder.constants import SettingKey
 
 warnings.warn(
@@ -386,7 +387,7 @@ def main(file):
 # environment variable.  For example:
 #
 #   GIRDER_MONGO_URI='mongodb://127.0.0.1:27017/import_test' python setup_database.py spec.yml
-#   GIRDER_MONGO_URI='mongodb://127.0.0.1:27017/import_test' girder-server
+#   GIRDER_MONGO_URI='mongodb://127.0.0.1:27017/import_test' girder serve
 if __name__ == '__main__':
     import sys
     main(sys.argv[1])

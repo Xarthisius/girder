@@ -51,7 +51,7 @@ VERSION = {  # Set defaults in case girder-version.json doesn't exist
 try:
     with open(os.path.join(PACKAGE_DIR, 'girder-version.json')) as f:
         VERSION.update(json.load(f))
-except IOError:  # pragma: no cover
+except IOError:
     pass
 
 #: The local directory containing the static content.
@@ -116,7 +116,7 @@ class TerminalColor(object):
         return TerminalColor._color(TerminalColor.INFO, text)
 
 
-class AssetstoreType:
+class AssetstoreType(object):
     """
     All possible assetstore implementation types.
     """
@@ -125,7 +125,7 @@ class AssetstoreType:
     S3 = 2
 
 
-class AccessType:
+class AccessType(object):
     """
     Represents the level of access granted to a user or group on an
     AccessControlledModel. Having a higher access level on a resource also
@@ -154,69 +154,73 @@ class AccessType:
             raise ValueError('Invalid AccessType: %d.' % level)
 
 
-class SettingKey:
+class SettingKey(object):
     """
     Core settings should be enumerated here by a set of constants corresponding
     to sensible strings.
     """
-    BRAND_NAME = 'core.brand_name'
+    ADD_TO_GROUP_POLICY = 'core.add_to_group_policy'
+    API_KEYS = 'core.api_keys'
     BANNER_COLOR = 'core.banner_color'
-    PLUGINS_ENABLED = 'core.plugins_enabled'
-    COOKIE_LIFETIME = 'core.cookie_lifetime'
-    EMAIL_FROM_ADDRESS = 'core.email_from_address'
+    BRAND_NAME = 'core.brand_name'
+    COLLECTION_CREATE_POLICY = 'core.collection_create_policy'
     CONTACT_EMAIL_ADDRESS = 'core.contact_email_address'
+    COOKIE_LIFETIME = 'core.cookie_lifetime'
+    CORS_ALLOW_HEADERS = 'core.cors.allow_headers'
+    CORS_ALLOW_METHODS = 'core.cors.allow_methods'
+    CORS_ALLOW_ORIGIN = 'core.cors.allow_origin'
+    EMAIL_FROM_ADDRESS = 'core.email_from_address'
     EMAIL_HOST = 'core.email_host'
-    REGISTRATION_POLICY = 'core.registration_policy'
     EMAIL_VERIFICATION = 'core.email_verification'
+    ENABLE_PASSWORD_LOGIN = 'core.enable_password_login'
+    PLUGINS_ENABLED = 'core.plugins_enabled'
+    REGISTRATION_POLICY = 'core.registration_policy'
+    ROUTE_TABLE = 'core.route_table'
     SECURE_COOKIE = 'core.secure_cookie'
     SERVER_ROOT = 'core.server_root'
-    SMTP_HOST = 'core.smtp_host'
-    SMTP_PORT = 'core.smtp.port'
     SMTP_ENCRYPTION = 'core.smtp.encryption'
-    SMTP_USERNAME = 'core.smtp.username'
+    SMTP_HOST = 'core.smtp_host'
     SMTP_PASSWORD = 'core.smtp.password'
+    SMTP_PORT = 'core.smtp.port'
+    SMTP_USERNAME = 'core.smtp.username'
     UPLOAD_MINIMUM_CHUNK_SIZE = 'core.upload_minimum_chunk_size'
-    CORS_ALLOW_ORIGIN = 'core.cors.allow_origin'
-    CORS_ALLOW_METHODS = 'core.cors.allow_methods'
-    CORS_ALLOW_HEADERS = 'core.cors.allow_headers'
-    ADD_TO_GROUP_POLICY = 'core.add_to_group_policy'
-    COLLECTION_CREATE_POLICY = 'core.collection_create_policy'
     USER_DEFAULT_FOLDERS = 'core.user_default_folders'
-    ROUTE_TABLE = 'core.route_table'
 
 
-class SettingDefault:
+class SettingDefault(object):
     """
     Core settings that have a default should be enumerated here with the
     SettingKey.
     """
     defaults = {
-        SettingKey.BRAND_NAME: 'Girder',
-        SettingKey.BANNER_COLOR: '#3F3B3B',
-        SettingKey.PLUGINS_ENABLED: [],
-        SettingKey.COOKIE_LIFETIME: 180,
-        SettingKey.EMAIL_FROM_ADDRESS: 'Girder <no-reply@girder.org>',
-        SettingKey.CONTACT_EMAIL_ADDRESS: 'kitware@kitware.com',
-        SettingKey.REGISTRATION_POLICY: 'open',
-        SettingKey.EMAIL_VERIFICATION: 'disabled',
-        SettingKey.SMTP_HOST: 'localhost',
-        SettingKey.SMTP_PORT: 25,
-        SettingKey.SMTP_ENCRYPTION: 'none',
-        SettingKey.UPLOAD_MINIMUM_CHUNK_SIZE: 1024 * 1024 * 5,
-        # These headers are necessary to allow the web server to work with just
-        # changes to the CORS origin
-        SettingKey.CORS_ALLOW_HEADERS:
-            'Accept-Encoding, Authorization, Content-Disposition, '
-            'Content-Type, Cookie, Girder-Authorization, Girder-Token',
-            # An apache server using reverse proxy would also need
-            #  X-Requested-With, X-Forwarded-Server, X-Forwarded-For,
-            #  X-Forwarded-Host, Remote-Addr
         SettingKey.ADD_TO_GROUP_POLICY: 'never',
+        SettingKey.API_KEYS: True,
+        SettingKey.BANNER_COLOR: '#3F3B3B',
+        SettingKey.BRAND_NAME: 'Girder',
         SettingKey.COLLECTION_CREATE_POLICY: {
             'open': False,
             'groups': [],
             'users': []
         },
+        SettingKey.CONTACT_EMAIL_ADDRESS: 'kitware@kitware.com',
+        SettingKey.COOKIE_LIFETIME: 180,
+        # These headers are necessary to allow the web server to work with just
+        # changes to the CORS origin
+        SettingKey.CORS_ALLOW_HEADERS:
+            'Accept-Encoding, Authorization, Content-Disposition, '
+            'Content-Type, Cookie, Girder-Authorization, Girder-Token',
+        # An apache server using reverse proxy would also need
+        #  X-Requested-With, X-Forwarded-Server, X-Forwarded-For,
+        #  X-Forwarded-Host, Remote-Addr
+        SettingKey.EMAIL_VERIFICATION: 'disabled',
+        SettingKey.EMAIL_FROM_ADDRESS: 'Girder <no-reply@girder.org>',
+        SettingKey.ENABLE_PASSWORD_LOGIN: True,
+        SettingKey.PLUGINS_ENABLED: [],
+        SettingKey.REGISTRATION_POLICY: 'open',
+        SettingKey.SMTP_HOST: 'localhost',
+        SettingKey.SMTP_PORT: 25,
+        SettingKey.SMTP_ENCRYPTION: 'none',
+        SettingKey.UPLOAD_MINIMUM_CHUNK_SIZE: 1024 * 1024 * 5,
         SettingKey.USER_DEFAULT_FOLDERS: 'public_private'
     }
 
@@ -226,7 +230,7 @@ class SortDir(object):
     DESCENDING = -1
 
 
-class TokenScope:
+class TokenScope(object):
     """
     Constants for core token scope strings. Token scopes must not contain
     spaces, since many services accept scope lists as a space-separated list

@@ -333,8 +333,8 @@ describe('Test hierarchy widget non-standard options', function () {
         });
 
         waitsFor(
-          function () { return folderSelected; },
-          'the folder select button to be clicked');
+            function () { return folderSelected; },
+            'the folder select button to be clicked');
 
         runs(function () {
             $('body').empty().off();
@@ -349,11 +349,11 @@ describe('Test hierarchy widget non-standard options', function () {
         });
 
         waitsFor(
-          function () {
-              return $('.g-hierarchy-widget').length > 0 &&
+            function () {
+                return $('.g-hierarchy-widget').length > 0 &&
                      $('.g-folder-list-link').length > 0;
-          },
-          'the hierarchy widget to display without the folder select button'
+            },
+            'the hierarchy widget to display without the folder select button'
         );
 
         runs(function () {
@@ -668,8 +668,8 @@ describe('Test search widget with non-standard options', function () {
 
         runs(function () {
             var results = $('li.g-search-result');
-            expect(results.length).toBe(1);
-            expect(results.find('a[resourcetype="folder"]').text()).toContain('top level folder');
+            expect(results.length).toBe(2);
+            expect(results.find('a[data-resource-type="folder"]').text()).toContain('top level folder');
         });
     });
 

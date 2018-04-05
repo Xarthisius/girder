@@ -172,7 +172,7 @@ describe('Run the item task', function () {
             return $('.g-validation-failed-message').text();
         }, 'validation to fail');
 
-        runs(function() {
+        runs(function () {
             expect($('.g-validation-failed-message').text()).toMatch(/Invalid parent type/);
             $('.modal-dialog .g-folder-list-link:first').click();
         });
@@ -253,6 +253,7 @@ describe('Auto-configure the JSON item task folder', function () {
 
         runs(function () {
             // loads specs.json
+            $('.modal-dialog .g-configure-json-tasks-tab > a').click();
             $('.modal-dialog .g-configure-docker-image').val('me/my_image:latest');
             $('.modal-dialog button.btn.btn-success[type="submit"]').click();
         });
@@ -277,9 +278,9 @@ describe('Navigate to the new JSON task', function () {
 
         runs(function () {
             expect($('.g-execute-task-link').length).toBe(3);
-            expect($('.g-execute-task-link').eq(0).text()).toBe('me/my_image:latest 0');
-            expect($('.g-execute-task-link').eq(1).text()).toBe('me/my_image:latest 1');
-            window.location.assign($('a.g-execute-task-link').eq(0).attr('href'));
+            expect($('.g-execute-task-link:contains("me/my_image:latest 0")').length).toBe(1);
+            expect($('.g-execute-task-link:contains("me/my_image:latest 1")').length).toBe(1);
+            window.location.assign($('a.g-execute-task-link:contains("me/my_image:latest 0")').attr('href'));
         });
 
         waitsFor(function () {
@@ -316,7 +317,7 @@ describe('Run task on item from item view', function () {
     });
 
     it('navigate to items', function () {
-        runs(function() {
+        runs(function () {
             $('.g-folder-list-link:contains("tasks")').click();
         });
 
@@ -427,6 +428,7 @@ describe('Auto-configure the demo JSON task', function () {
         girderTest.waitForDialog();
 
         runs(function () {
+            $('.modal-dialog .g-configure-json-tasks-tab > a').click();
             $('.modal-dialog .g-configure-docker-image').val('item-tasks-demo');
             $('.modal-dialog .g-configure-task-name').val('item_tasks widget types demo');
             $('.modal-dialog button.btn.btn-success[type="submit"]').click();
@@ -452,8 +454,8 @@ describe('Navigate to the demo task', function () {
 
         runs(function () {
             expect($('.g-execute-task-link').length).toBe(4);
-            expect($('.g-execute-task-link').eq(0).text()).toBe('item_tasks widget types demo');
-            window.location.assign($('a.g-execute-task-link').eq(0).attr('href'));
+            expect($('.g-execute-task-link:contains("item_tasks widget types demo")').length).toBe(1);
+            window.location.assign($('a.g-execute-task-link:contains("item_tasks widget types demo")').attr('href'));
         });
 
         waitsFor(function () {
@@ -650,10 +652,13 @@ describe('Navigate to the new Slicer CLI task', function () {
 
         runs(function () {
             expect($('.g-execute-task-link').length).toBe(5);
-            expect($('.g-execute-task-link').eq(4).text()).toBe('PET phantom detector CLI');
-            expect($('.g-execute-task-link-body').eq(4).text()).toContain(
+            // get the position of the alphabetized entry; depending on locale
+            // it may be in different positions
+            var position = $('.g-execute-task-link').index($(':contains("PET phantom detector CLI"):last'));
+            expect($('.g-execute-task-link').eq(position).text()).toBe('PET phantom detector CLI');
+            expect($('.g-execute-task-link-body').eq(position).text()).toContain(
                 'Detects positions of PET/CT pocket phantoms in PET image.');
-            window.location.assign($('a.g-execute-task-link').eq(4).attr('href'));
+            window.location.assign($('a.g-execute-task-link').eq(position).attr('href'));
         });
 
         waitsFor(function () {
@@ -665,6 +670,118 @@ describe('Navigate to the new Slicer CLI task', function () {
                 'Detects positions of PET/CT pocket phantoms in PET image.');
             expect($('.g-inputs-container').length).toBe(1);
             expect($('.g-inputs-container .g-control-item').length).toBe(9);
+        });
+    });
+});
+
+describe('Test celery tasks', function () {
+    describe('setup', function () {
+        it('go to collection page', function () {
+            $('ul.g-global-nav .g-nav-link[g-target="collections"]').click();
+        });
+
+        it('create collection and folder', girderTest.createCollection('celery task test', '', 'tasks'));
+
+        it('navigate to the folder', function () {
+            runs(function () {
+                $('.g-folder-list-link').click();
+            });
+
+            waitsFor(function () {
+                return $('.g-empty-parent-message:visible').length > 0;
+            }, 'folder empty list to appear');
+        });
+
+        it('create a new item', function () {
+            runs(function () {
+                $('.g-folder-list-link').click();
+            });
+
+            waitsFor(function () {
+                return $('.g-empty-parent-message:visible').length > 0;
+            }, 'folder empty list to appear');
+
+            runs(function () {
+                $('.g-folder-actions-button').click();
+                $('.g-folder-actions-menu .g-create-item').click();
+            });
+
+            girderTest.waitForDialog();
+
+            runs(function () {
+                $('.modal-dialog #g-name').val('task placeholder');
+                $('.modal-dialog .g-save-item').click();
+            });
+
+            waitsFor(function () {
+                return $('.g-item-list-link').text().indexOf('task placeholder') !== -1;
+            }, 'item to appear in the list');
+        });
+
+        it('navigate to the item', function () {
+            $('.g-item-list-link:first').click();
+
+            waitsFor(function () {
+                return $('.g-item-files .g-file-list').length > 0;
+            }, 'item view to render');
+        });
+    });
+
+    describe('test configuring a celery task item', function () {
+        it('open the task configuration dialog', function () {
+            $('.g-item-actions-button').click();
+            $('.g-item-actions-menu .g-configure-item-task').click();
+
+            girderTest.waitForDialog();
+
+            runs(function () {
+                $('.modal-dialog .g-configure-celery-task-tab > a').click();
+            });
+        });
+
+        it('run the item task configuration', function () {
+            $('.modal-dialog .g-celery-import-path').val(
+                'girder.web_test_setup0.echo_number'
+            );
+            $('.modal-dialog button.btn.btn-success[type="submit"]').click();
+
+            girderTest.waitForLoad();
+            runs(function () {
+                expect($('.g-item-name').text()).toBe('echo_number');
+            });
+        });
+    });
+
+    describe('test configuring a celery task folder', function () {
+        it('navigate to the tasks folder', function () {
+            $('.g-item-breadcrumb-link:contains("tasks")').click();
+            girderTest.waitForLoad();
+        });
+
+        it('open the configuration dialog', function () {
+            $('.g-folder-actions-button').click();
+            $('.g-folder-actions-menu .g-create-docker-tasks').click();
+            girderTest.waitForDialog();
+
+            runs(function () {
+                $('.modal-dialog .g-configure-celery-task-tab > a').click();
+            });
+        });
+
+        it('check dropdown items', function () {
+            expect($('.g-worker-extension option[value="test_echo"]').length).toBe(1);
+            expect($('.g-worker-extension option[value="test_echo_string"]').length).toBe(1);
+            expect($('.g-worker-extension option[value="test_echo_number"]').length).toBe(1);
+        });
+
+        it('configure the folder', function () {
+            $('.g-worker-extension').val('test_echo');
+            $('.modal-dialog button.btn.btn-success[type="submit"]').click();
+            girderTest.waitForLoad();
+            runs(function () {
+                expect($('.g-item-list-link:contains("echo_string")').length).toBe(1);
+                expect($('.g-item-list-link:contains("echo_number")').length).toBe(1);
+            });
         });
     });
 });

@@ -6,16 +6,11 @@
 # From .gitignore
 *.py[cod]
 node_modules
-docs/_build
-docs/_output
-.coverage*
 girder.egg-info
 .DS_Store
 .*.swp
 .*.swo
 .vagrant
-phantom-*.png
-phantom_*.png
 girder-*.tar.gz
 __pycache__
 ### PyCharm ###
@@ -26,7 +21,6 @@ __pycache__
 **/*.retry
 
 /clients/python
-/clients/jquery
 /clients/web-external
 /cmake
 /devops

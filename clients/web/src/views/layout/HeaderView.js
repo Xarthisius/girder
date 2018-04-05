@@ -22,13 +22,18 @@ var LayoutHeaderView = View.extend({
     initialize: function (settings) {
         this.brandName = settings.brandName || 'Girder';
         this.bannerColor = settings.bannerColor || '#3F3B3B';
+
         this.userView = new LayoutHeaderUserView({
-            parentView: this
+            parentView: this,
+            registrationPolicy: settings.registrationPolicy
         });
 
+        /*
+         * The order of types correspond to the order of the displayed types results on the dialog box.
+         */
         this.searchWidget = new SearchFieldWidget({
             placeholder: 'Quick search...',
-            types: ['item', 'folder', 'group', 'collection', 'user'],
+            types: ['collection', 'folder', 'item', 'group', 'user'],
             parentView: this
         }).on('g:resultClicked', function (result) {
             this.searchWidget.resetState();

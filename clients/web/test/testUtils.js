@@ -444,8 +444,9 @@ girderTest.testMetadata = function () {
         }
         waitsFor(function () {
             return $('input.g-widget-metadata-key-input').length === 1 &&
-                ((type === 'simple') ? $('textarea.g-widget-metadata-value-input').length === 1
-                                     : $('.jsoneditor > .jsoneditor-outer > .jsoneditor-tree').length === 1);
+                ((type === 'simple')
+                    ? $('textarea.g-widget-metadata-value-input').length === 1
+                    : $('.jsoneditor > .jsoneditor-outer > .jsoneditor-tree').length === 1);
         }, 'the add metadata input fields to appear');
         runs(function () {
             if (!elem) {
@@ -503,8 +504,9 @@ girderTest.testMetadata = function () {
         }
         waitsFor(function () {
             return $('input.g-widget-metadata-key-input').length === 0 &&
-                ((type === 'simple') ? $('textarea.g-widget-metadata-value-input').length === 0
-                                     : $('.jsoneditor > .jsoneditor-outer > .jsoneditor-tree').length === 0);
+                ((type === 'simple')
+                    ? $('textarea.g-widget-metadata-value-input').length === 0
+                    : $('.jsoneditor > .jsoneditor-outer > .jsoneditor-tree').length === 0);
         }, 'edit fields to disappear');
         waitsFor(function () {
             return $('.g-widget-metadata-row').length === expectedNum;
@@ -636,7 +638,7 @@ girderTest.addScript = function (url) {
     girderTest.promise = girderTest.promise
         .then(_.partial($.getScript, url))
         .catch(function () {
-            throw 'Failed to load script: ' + url;
+            throw new Error('Failed to load script: ' + url);
         });
 };
 
@@ -809,13 +811,13 @@ girderTest.testRoute = function (route, hasDialog, testFunc) {
         girder.router.navigate(route, {trigger: true});
     });
 
+    if (testFunc) {
+        waitsFor(testFunc, 'testRoute: test function failed, route=' + route);
+    }
     if (hasDialog) {
         girderTest.waitForDialog('testRoute: waitForDialog failed, route=' + route);
     } else {
         girderTest.waitForLoad('testRoute: waitForLoad failed, route=' + route);
-    }
-    if (testFunc) {
-        waitsFor(testFunc, 'testRoute: test function failed, route=' + route);
     }
 };
 
@@ -1218,7 +1220,7 @@ girderTest.anonymousLoadPage = function (logoutFirst, fragment, hasLoginDialog, 
 /*
  * Provide an alternate path to injecting a test spec as a url query parameter.
  *
- * To use, start girder in testing mode: `python -m girder --testing` and
+ * To use, start girder in testing mode: `girder serve --testing` and
  * browse to the test html with a spec provided:
  *
  *   http://localhost:8080/static/built/testing/testEnv.html?spec=%2Fclients%2Fweb%2Ftest%2Fspec%2FversionSpec.js
@@ -1278,6 +1280,21 @@ girderTest.startApp = function () {
                 parentView: null,
                 start: false
             });
+            /* Add a handler to allow tests to use
+             *   $(<a element with href>).click()
+             * to test clicking on links. */
+            girder.app.events = girder.app.events || {};
+            girder.app.events['click a'] = function (evt) {
+                if (!evt.isDefaultPrevented()) {
+                    var elem = $(evt.target),
+                        href = elem.attr('href');
+                    if (elem.is('a') && href && href.substr(0, 1) === '#') {
+                        girder.router.navigate(href.substr(1), {trigger: true});
+                        evt.preventDefault();
+                    }
+                }
+            };
+            girder.app.delegateEvents();
             return girder.app.start();
         })
         .then(function () {

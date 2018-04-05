@@ -21,9 +21,10 @@ import datetime
 import os
 import re
 
-from .model_base import AccessControlledModel, AccessException, ValidationException
+from .model_base import AccessControlledModel
 from girder import events
 from girder.constants import AccessType, CoreEventHandler, SettingKey, TokenScope
+from girder.exceptions import AccessException, ValidationException
 from girder.utility import config, mail_utils
 
 
@@ -70,7 +71,7 @@ class User(AccessControlledModel):
 
         cur_config = config.getConfig()
 
-        if 'salt' not in doc:  # pragma: no cover
+        if 'salt' not in doc:
             # Internal error, this should not happen
             raise Exception('Tried to save user document with no salt.')
 

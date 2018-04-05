@@ -22,7 +22,7 @@ from celery.result import AsyncResult
 
 from girder import events, logger
 from girder.constants import AccessType
-from girder.models.model_base import ValidationException
+from girder.exceptions import ValidationException
 from girder.plugins.jobs.constants import JobStatus
 from girder.plugins.jobs.models.job import Job
 from girder.models.setting import Setting
@@ -63,7 +63,7 @@ class CustomJobStatus(object):
 
     # valid transitions for celery scheduled jobs
     # N.B. We have the extra worker input/output states defined here for when
-    # we are running girder_worker.run as a regualar celery task
+    # we are running girder_worker.run as a regular celery task
     valid_celery_transitions = {
         JobStatus.QUEUED: [JobStatus.INACTIVE],
         # Note celery tasks can jump straight from INACTIVE to RUNNING

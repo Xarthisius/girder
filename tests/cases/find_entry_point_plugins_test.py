@@ -18,6 +18,7 @@
 ###############################################################################
 
 import mock
+import six
 import unittest
 
 from contextlib import contextmanager
@@ -103,7 +104,9 @@ class FindEntryPointPluginsTestCase(unittest.TestCase):
         resource_stream.return_value = resource_stream_json_value()
 
         plugins = {}
-        findEntryPointPlugins(plugins)
+        with mock.patch('girder.utility.plugin_utilities.logprint.exception') as logprint:
+            findEntryPointPlugins(plugins)
+            logprint.assert_called_once()
 
         iter_entry_points.assert_called_once_with(group='girder.plugin')
 
@@ -112,7 +115,9 @@ class FindEntryPointPluginsTestCase(unittest.TestCase):
         failures = getPluginFailureInfo()
         self.assertIn('entry_point_plugin_bad_json', failures)
         self.assertIn('traceback', failures['entry_point_plugin_bad_json'])
-        self.assertIn('ValueError', failures['entry_point_plugin_bad_json']['traceback'])
+        self.assertIn(
+            'JSONDecodeError' if six.PY3 else 'ValueError',
+            failures['entry_point_plugin_bad_json']['traceback'])
 
     @mock.patch('pkg_resources.resource_stream')
     @mock.patch('pkg_resources.resource_exists')
@@ -156,7 +161,9 @@ class FindEntryPointPluginsTestCase(unittest.TestCase):
         resource_stream.return_value = resource_stream_yaml_value()
 
         plugins = {}
-        findEntryPointPlugins(plugins)
+        with mock.patch('girder.utility.plugin_utilities.logprint.exception') as logprint:
+            findEntryPointPlugins(plugins)
+            logprint.assert_called_once()
 
         iter_entry_points.assert_called_once_with(group='girder.plugin')
 
@@ -179,7 +186,9 @@ class FindEntryPointPluginsTestCase(unittest.TestCase):
         _clearPluginFailureInfo.return_value = None
 
         plugins = {}
-        findEntryPointPlugins(plugins)
+        with mock.patch('girder.utility.plugin_utilities.logprint.exception') as logprint:
+            findEntryPointPlugins(plugins)
+            logprint.assert_called_once()
 
         iter_entry_points.assert_called_once_with(group='girder.plugin')
 
