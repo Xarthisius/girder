@@ -195,6 +195,12 @@ class Setting(Model):
             raise ValidationException('The banner color must be a hex color triplet', 'value')
 
     @staticmethod
+    @setting_utilities.validator(SettingKey.PRIVACY_NOTICE)
+    def validateCorePrivacyNotice(doc):
+        if not doc['value']:
+            raise ValidationException('The privacy notice link may not be empty', 'value')
+
+    @staticmethod
     @setting_utilities.validator(SettingKey.SECURE_COOKIE)
     def validateSecureCookie(doc):
         if not isinstance(doc['value'], bool):
@@ -446,3 +452,18 @@ class Setting(Model):
         if doc['value'] not in ('public_private', 'none'):
             raise ValidationException(
                 'User default folders must be either "public_private" or "none".', 'value')
+
+    @staticmethod
+    @setting_utilities.validator(SettingKey.GIRDER_MOUNT_INFORMATION)
+    def validateCoreGirderMountInformation(doc):
+        value = doc['value']
+        if not isinstance(value, dict) or 'path' not in value:
+            raise ValidationException(
+                'Girder mount information must be a dict with the "path" key.')
+
+    @staticmethod
+    @setting_utilities.validator(SettingKey.ENABLE_NOTIFICATION_STREAM)
+    def validateEnableNotificationStream(doc):
+        if not isinstance(doc['value'], bool):
+            raise ValidationException(
+                'Enable notification stream option must be boolean.', 'value')

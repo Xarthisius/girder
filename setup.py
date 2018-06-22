@@ -59,7 +59,6 @@ with open('README.rst') as f:
     readme = f.read()
 
 installReqs = [
-    'bcrypt',
     'boto3',
     # CherryPy version is restricted due to a bug in versions >=11.1
     # https://github.com/cherrypy/cherrypy/issues/1662
@@ -71,6 +70,7 @@ installReqs = [
     'funcsigs ; python_version < \'3\'',
     'jsonschema',
     'Mako',
+    'passlib [bcrypt,totp]',
     'pymongo>=3.5',
     'PyYAML',
     'psutil',
@@ -111,6 +111,9 @@ for pluginName in os.listdir('plugins'):
 extrasReqs['plugins'] = list(set(itertools.chain.from_iterable(extrasReqs.values())))
 extrasReqs['sftp'] = [
     'paramiko',
+]
+extrasReqs['mount'] = [
+    'fusepy>=2.0.4',
 ]
 
 init = os.path.join(os.path.dirname(__file__), 'girder', '__init__.py')
@@ -169,6 +172,7 @@ setup(
         ],
         'girder.cli_plugins': [
             'serve = girder.cli.serve:main',
+            'mount = girder.cli.mount:main',
             'shell = girder.cli.shell:main',
             'sftpd = girder.cli.sftpd:main'
         ]

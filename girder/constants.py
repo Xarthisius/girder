@@ -164,6 +164,7 @@ class SettingKey(object):
     BANNER_COLOR = 'core.banner_color'
     BRAND_NAME = 'core.brand_name'
     COLLECTION_CREATE_POLICY = 'core.collection_create_policy'
+    PRIVACY_NOTICE = 'core.privacy_notice'
     CONTACT_EMAIL_ADDRESS = 'core.contact_email_address'
     COOKIE_LIFETIME = 'core.cookie_lifetime'
     CORS_ALLOW_HEADERS = 'core.cors.allow_headers'
@@ -173,6 +174,8 @@ class SettingKey(object):
     EMAIL_HOST = 'core.email_host'
     EMAIL_VERIFICATION = 'core.email_verification'
     ENABLE_PASSWORD_LOGIN = 'core.enable_password_login'
+    GIRDER_MOUNT_INFORMATION = 'core.girder_mount_information'
+    ENABLE_NOTIFICATION_STREAM = 'core.enable_notification_stream'
     PLUGINS_ENABLED = 'core.plugins_enabled'
     REGISTRATION_POLICY = 'core.registration_policy'
     ROUTE_TABLE = 'core.route_table'
@@ -203,18 +206,20 @@ class SettingDefault(object):
             'users': []
         },
         SettingKey.CONTACT_EMAIL_ADDRESS: 'kitware@kitware.com',
+        SettingKey.PRIVACY_NOTICE: 'https://www.kitware.com/privacy',
         SettingKey.COOKIE_LIFETIME: 180,
         # These headers are necessary to allow the web server to work with just
         # changes to the CORS origin
         SettingKey.CORS_ALLOW_HEADERS:
             'Accept-Encoding, Authorization, Content-Disposition, '
-            'Content-Type, Cookie, Girder-Authorization, Girder-Token',
+            'Content-Type, Cookie, Girder-Authorization, Girder-OTP, Girder-Token',
         # An apache server using reverse proxy would also need
         #  X-Requested-With, X-Forwarded-Server, X-Forwarded-For,
         #  X-Forwarded-Host, Remote-Addr
         SettingKey.EMAIL_VERIFICATION: 'disabled',
         SettingKey.EMAIL_FROM_ADDRESS: 'Girder <no-reply@girder.org>',
         SettingKey.ENABLE_PASSWORD_LOGIN: True,
+        SettingKey.ENABLE_NOTIFICATION_STREAM: True,
         SettingKey.PLUGINS_ENABLED: [],
         SettingKey.REGISTRATION_POLICY: 'open',
         SettingKey.SMTP_HOST: 'localhost',

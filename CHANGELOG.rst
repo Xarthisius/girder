@@ -8,6 +8,56 @@ details, see the commit logs at https://github.com/girder/girder
 Unreleased
 ==========
 
+Changes
+-------
+
+* Move minimum node version to 8.x due to upstream packages using newer ES features.
+  (`#2707 <https://github.com/girder/girder/pull/2707>`_).
+
+Bug Fixes
+---------
+
+* Fixed a bug where removing admin status from a user via the REST API did not work.
+  (`#2720 <https://github.com/girder/girder/pull/2720>`_).
+
+Python Client
+^^^^^^^^^^^^^
+
+* Added support for uploading empty files.
+  (`#2714 <https://github.com/girder/girder/pull/2714>`_).
+
+Added Features
+--------------
+* Added a privacy notice link to the footer which can be set on the Server Configuration view of the web client (
+  `#2728 <https://github.com/girder/girder/pull/2728>`_).
+
+* Added a setting to disable the notification stream. This may improve Girder's performance in runtime environments with
+  fewer threads (`#2712 <https://github.com/girder/girder/pull/2712>`_).
+
+* Added a task information panel that shows remote worker status.  This is accessible from the jobs
+  list when the remote worker plugin is enabled and also from the worker plugin configuration page.
+  (`#2678 <https://github.com/girder/girder/pull/2678>`_)
+
+* Allow users to login with two-factor authentication via TOTP on a mobile authenticator app.
+  (`#2655 <https://github.com/girder/girder/pull/2655>`_).
+
+Python Client
+^^^^^^^^^^^^^
+* Added a ``--token`` option to the girder-client command line interface to allow users to specify
+  a pre-created authentication token. (`#2689 <https://github.com/girder/girder/pull/2689>`_).
+* Added a ``--retry`` option to the girder-client command line interface to retry connection and
+  certain error responses (`#2697 <https://github.com/girder/girder/pull/2697>`_).
+* Added a ``--verbose`` option to the girder-client command line interface to increase the verbosity
+  of information dumped to stderr (`#2699 <https://github.com/girder/girder/pull/2699>`_).
+
+Changes
+-------
+
+* The Server FUSE plugin has been refactored into the ``girder mount`` command.
+  Instead of setting a value in the configuration file and turning on a plugin,
+  run ``girder mount <mount path>`` before or after starting a Girder server.
+  (`#2691 <https://github.com/girder/girder/pull/2691>`_)
+
 Girder 2.5.0
 ============
 

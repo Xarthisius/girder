@@ -38,7 +38,14 @@ var SystemConfigurationView = View.extend({
                             return [$(el).data('webrootName'), $(el).val()];
                         }))
                     };
-                } else if (_.contains(['core.api_keys', 'core.enable_password_login'], key)) { // booleans via checkboxes
+                } else if (_.contains(
+                    [
+                        'core.api_keys',
+                        'core.enable_password_login',
+                        'core.enable_notification_stream'
+                    ],
+                    key
+                )) { // booleans via checkboxes
                     return {
                         key,
                         value: element.is(':checked')
@@ -85,6 +92,7 @@ var SystemConfigurationView = View.extend({
             'core.contact_email_address',
             'core.brand_name',
             'core.banner_color',
+            'core.privacy_notice',
             'core.cookie_lifetime',
             'core.enable_password_login',
             'core.email_from_address',
@@ -98,6 +106,7 @@ var SystemConfigurationView = View.extend({
             'core.smtp.username',
             'core.smtp.password',
             'core.upload_minimum_chunk_size',
+            'core.enable_notification_stream',
             'core.cors.allow_origin',
             'core.cors.allow_methods',
             'core.cors.allow_headers',
