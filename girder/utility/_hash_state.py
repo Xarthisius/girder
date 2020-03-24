@@ -55,10 +55,20 @@ def _getHashStateDataPointer(hashObject):
         # Thus, an offset of 6 words ( sizeof(void*) is 1 word) is required
         stateDataPointer = ctypes.cast(hashPointer[6], ctypes.POINTER(ctypes.c_char))
     else:
-        # In cpython 2.7.13, hashlib changed to store a pointer to the OpenSSL hash
-        # object rather than inlining it in the struct, so we require an extra dereference. See
-        # https://github.com/python/cpython/commit/9d9615f6782be4b1f38b47d4d56cee208c26a970
-        evpStruct = ctypes.cast(hashPointer[3], ctypes.POINTER(ctypes.c_void_p))
+        # In cpython 2.7.13, and cpython >= 3.5.4 hashlib changed to store a pointer
+        # to the OpenSSL hash object rather than inlining it in the struct,
+        # so we require an extra dereference. See
+        #  github.com/python/cpython/commit/c2fc7c4f53069558b52d7a497fc195efebe8b4db
+        # In CPython 3.8.0 'PyObject *name;' was removed from EVPobject. See
+        #  github.com/python/cpython/blob/3.8/Modules/_hashopenssl.c#L49-L53
+        if _ver < (3, 8, 0):
+            evps_index = 3
+        else:
+            evps_index = 2
+
+        evpStruct = ctypes.cast(
+            hashPointer[evps_index], ctypes.POINTER(ctypes.c_void_p)
+        )
         stateDataPointer = ctypes.cast(evpStruct[3], ctypes.POINTER(ctypes.c_char))
 
     assert stateDataPointer
