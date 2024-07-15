@@ -117,7 +117,7 @@ class ResourceTestCase(base.TestCase):
             + [self.items[4]['name'], 'girder-item-metadata.json']))
         self.expectedZip[path] = meta
 
-        meta = {'key2': 'value2', 'date': datetime.datetime.utcnow()}
+        meta = {'key2': 'value2', 'date': datetime.datetime.now(datetime.timezone.utc)}
         # mongo rounds to millisecond, so adjust our expectations
         meta['date'] -= datetime.timedelta(
             microseconds=meta['date'].microsecond % 1000)
@@ -238,7 +238,7 @@ class ResourceTestCase(base.TestCase):
         self.assertEqual(notifs[0]['data']['message'], 'Done')
         self.assertEqual(notifs[0]['data']['total'], 6)
         self.assertEqual(notifs[0]['data']['current'], 6)
-        self.assertTrue(notifs[0]['expires'] < datetime.datetime.utcnow()
+        self.assertTrue(notifs[0]['expires'] < datetime.datetime.now(datetime.timezone.utc)
                         + datetime.timedelta(minutes=1))
         # Test deletes using a body on the request
         resourceList = {
